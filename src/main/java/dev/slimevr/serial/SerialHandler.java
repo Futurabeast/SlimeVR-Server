@@ -8,11 +8,12 @@ import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class SerialHandler implements SerialPortMessageListener {
 
 	private SerialPort trackerPort = null;
-	private List<SerialListener> listeners = new ArrayList<>();
+	private List<SerialListener> listeners = new CopyOnWriteArrayList<>();
 
 	public void addListener(SerialListener channel) {
 		this.listeners.add(channel);

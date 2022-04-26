@@ -21,6 +21,7 @@ import dev.slimevr.bridge.VMCBridge;
 import dev.slimevr.poserecorder.BVHRecorder;
 import dev.slimevr.serial.SerialHandler;
 import dev.slimevr.protocol.ProtocolAPI;
+import dev.slimevr.protocol.autobone.AutoBoneHandler;
 import dev.slimevr.vr.trackers.*;
 import dev.slimevr.websocketapi.WebSocketVRBridge;
 import dev.slimevr.util.ann.VRServerThread;
@@ -51,6 +52,7 @@ public class VRServer extends Thread {
 	private final List<? extends ShareableTracker> shareTrackers;
 	private final BVHRecorder bvhRecorder;
 	private final SerialHandler serialHandler;
+	private final AutoBoneHandler autoBoneHandler;
 	private final ProtocolAPI protocolAPI;
 	private String configPath;
 
@@ -64,6 +66,7 @@ public class VRServer extends Thread {
 		loadConfig();
 
 		serialHandler = new SerialHandler();
+		autoBoneHandler = new AutoBoneHandler(this);
 		protocolAPI = new ProtocolAPI(this);
 
 		hmdTracker = new HMDTracker("HMD");
@@ -341,6 +344,10 @@ public class VRServer extends Thread {
 
 	public SerialHandler getSerialHandler() {
 		return this.serialHandler;
+	}
+
+	public AutoBoneHandler getAutoBoneHandler() {
+		return this.autoBoneHandler;
 	}
 
 	public ProtocolAPI getProtocolAPI() {
