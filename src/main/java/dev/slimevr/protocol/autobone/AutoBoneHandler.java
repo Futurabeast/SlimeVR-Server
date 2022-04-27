@@ -47,14 +47,18 @@ public class AutoBoneHandler {
 		this.listeners.removeIf(l -> listener == l);
 	}
 
-	private void announceProcessStatus(AutoBoneProcessType processType, String message, Boolean completed, Boolean success) {
+	private void announceProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
 		listeners.forEach(listener -> {
 			listener.onAutoBoneProcessStatus(processType, message, completed, success);
 		});
 	}
 
 	private void announceProcessStatus(AutoBoneProcessType processType, String message) {
-		announceProcessStatus(processType, message, null, null);
+		announceProcessStatus(processType, message, false, true);
+	}
+
+	public String getLengthsString() {
+		return autoBone.getLengthsString();
 	}
 
 	private float processFrames(PoseFrames frames) {
@@ -100,13 +104,16 @@ public class AutoBoneHandler {
 				}
 
 				announceProcessStatus(AutoBoneProcessType.RECORD, "Done recording!", true, true);
+				listeners.forEach(listener -> {
+					listener.onAutoBoneRecordingEnd(frames);
+				});
 			} else {
 				announceProcessStatus(AutoBoneProcessType.RECORD, "The server is not ready to record", true, false);
 				LogManager.log.severe("[AutoBone] Unable to record...");
 				return;
 			}
 		} catch (Exception e) {
-			announceProcessStatus(AutoBoneProcessType.RECORD, "Recording failed", true, false);
+			announceProcessStatus(AutoBoneProcessType.RECORD, String.format("Recording failed: %s", e.getMessage()), true, false);
 			LogManager.log.severe("[AutoBone] Failed recording!", e);
 		} finally {
 			recordingThread = null;
@@ -155,7 +162,7 @@ public class AutoBoneHandler {
 				return;
 			}
 		} catch (Exception e) {
-			announceProcessStatus(AutoBoneProcessType.SAVE, "Failed to save recording", true, false);
+			announceProcessStatus(AutoBoneProcessType.SAVE, String.format("Failed to save recording: %s", e.getMessage()), true, false);
 			LogManager.log.severe("[AutoBone] Failed to save recording!", e);
 		} finally {
 			saveRecordingThread = null;
@@ -259,7 +266,7 @@ public class AutoBoneHandler {
 				listener.onAutoBoneEnd(autoBone.configs);
 			});
 		} catch (Exception e) {
-			announceProcessStatus(AutoBoneProcessType.PROCESS, "Processing failed", true, false);
+			announceProcessStatus(AutoBoneProcessType.PROCESS, String.format("Processing failed: %s", e.getMessage()), true, false);
 			LogManager.log.severe("[AutoBone] Failed adjustment!", e);
 		} finally {
 			autoBoneThread = null;
@@ -268,6 +275,7 @@ public class AutoBoneHandler {
 
 	public void applyValues() {
 		autoBone.applyConfig();
+		announceProcessStatus(AutoBoneProcessType.APPLY, "Adjusted values applied!");
 		// TODO Update GUI values after applying? Is that needed here?
 	}
 }

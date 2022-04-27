@@ -8,11 +8,9 @@ import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
 
 public interface AutoBoneListener {
 
-	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, Boolean completed, Boolean success);
+	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success);
 
 	public void onAutoBoneRecordingEnd(PoseFrames recording);
-
-	public void onAutoBoneRecordingSaveEnd();
 
 	public void onAutoBoneEpoch(Epoch epoch);
 
