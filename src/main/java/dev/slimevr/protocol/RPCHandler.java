@@ -3,7 +3,12 @@ package dev.slimevr.protocol;
 import com.fazecast.jSerialComm.SerialPort;
 import com.google.flatbuffers.FlatBufferBuilder;
 import com.jme3.math.Quaternion;
+
+import dev.slimevr.autobone.AutoBoneListener;
+import dev.slimevr.autobone.AutoBoneProcessType;
+import dev.slimevr.autobone.AutoBone.Epoch;
 import dev.slimevr.platform.windows.WindowsNamedPipeBridge;
+import dev.slimevr.poserecorder.PoseFrames;
 import dev.slimevr.serial.SerialListener;
 import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
 import dev.slimevr.vr.trackers.*;
@@ -12,9 +17,11 @@ import solarxr_protocol.MessageBundle;
 import solarxr_protocol.datatypes.TransactionId;
 import solarxr_protocol.rpc.*;
 
+import java.util.EnumMap;
+import java.util.Map.Entry;
 import java.util.function.BiConsumer;
 
-public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements SerialListener {
+public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements SerialListener, AutoBoneListener {
 
 	private final ProtocolAPI api;
 
@@ -39,7 +46,10 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 		registerPacketListener(RpcMessage.OpenSerialRequest, this::onOpenSerialRequest);
 		registerPacketListener(RpcMessage.CloseSerialRequest, this::onCloseSerialRequest);
 
+		registerPacketListener(RpcMessage.AutoBoneProcessRequest, this::onAutoBoneProcessRequest);
+
 		this.api.server.getSerialHandler().addListener(this);
+		this.api.server.getAutoBoneHandler().addListener(this);
 	}
 
 
@@ -325,5 +335,77 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 						conn.send(fbb.dataBuffer());
 					});
 		});
+	}
+
+	public void onAutoBoneProcessRequest(GenericConnection conn, RpcMessageHeader messageHeader) {
+		AutoBoneProcessRequest req = (AutoBoneProcessRequest) messageHeader.message(new AutoBoneProcessRequest());
+		if (req == null || conn.getContext().useAutoBone()) return;
+
+		conn.getContext().setUseAutoBone(true);
+		this.api.server.getAutoBoneHandler().startProcessByType(AutoBoneProcessType.getById(req.processType()));
+	}
+
+	@Override
+	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
+		this.api.getAPIServers().forEach((server) -> {
+			server.getAPIConnections()
+					.values()
+					.stream()
+					.filter(conn -> conn.getContext().useAutoBone())
+					.forEach((conn) -> {
+						FlatBufferBuilder fbb = new FlatBufferBuilder(32);
+
+						int messageOffset = fbb.createString(message);
+
+						int update = AutoBoneProcessStatus.createAutoBoneProcessStatus(fbb, processType.id, messageOffset, completed, success);
+						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneProcessStatus, update);
+						fbb.finish(outbound);
+
+						conn.send(fbb.dataBuffer());
+						if (completed) {
+							conn.getContext().setUseAutoBone(false);
+						}
+					});
+		});
+	}
+
+
+	@Override
+	public void onAutoBoneRecordingEnd(PoseFrames recording) {
+		// Do nothing, this is broadcasted by "onAutoBoneProcessStatus" uwu
+	}
+
+
+	@Override
+	public void onAutoBoneEpoch(Epoch epoch) {
+		this.api.getAPIServers().forEach((server) -> {
+			server.getAPIConnections()
+					.values()
+					.stream()
+					.filter(conn -> conn.getContext().useAutoBone())
+					.forEach((conn) -> {
+						FlatBufferBuilder fbb = new FlatBufferBuilder(32);
+
+						int[] skeletonPartOffsets = new int[epoch.configValues.size()];
+						int i = 0;
+						for (Entry<SkeletonConfigValue, Float> skeletonConfig : epoch.configValues.entrySet()) {
+							skeletonPartOffsets[i++] = SkeletonPart.createSkeletonPart(fbb, skeletonConfig.getKey().id, skeletonConfig.getValue());
+						}
+
+						int skeletonPartsOffset = AutoBoneEpoch.createAdjustedSkeletonPartsVector(fbb, skeletonPartOffsets);
+
+						int update = AutoBoneEpoch.createAutoBoneEpoch(fbb, epoch.epoch, epoch.totalEpochs, epoch.epochError, skeletonPartsOffset);
+						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneEpoch, update);
+						fbb.finish(outbound);
+
+						conn.send(fbb.dataBuffer());
+					});
+		});
+	}
+
+
+	@Override
+	public void onAutoBoneEnd(EnumMap<SkeletonConfigValue, Float> configValues) {
+		// Do nothing, the last epoch from "onAutoBoneEpoch" should be all that's needed
 	}
 }

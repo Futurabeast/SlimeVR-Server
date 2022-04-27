@@ -15,13 +15,13 @@ import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
+import dev.slimevr.autobone.AutoBoneHandler;
 import dev.slimevr.bridge.Bridge;
 import dev.slimevr.platform.windows.WindowsNamedPipeBridge;
 import dev.slimevr.bridge.VMCBridge;
 import dev.slimevr.poserecorder.BVHRecorder;
 import dev.slimevr.serial.SerialHandler;
 import dev.slimevr.protocol.ProtocolAPI;
-import dev.slimevr.protocol.autobone.AutoBoneHandler;
 import dev.slimevr.vr.trackers.*;
 import dev.slimevr.websocketapi.WebSocketVRBridge;
 import dev.slimevr.util.ann.VRServerThread;

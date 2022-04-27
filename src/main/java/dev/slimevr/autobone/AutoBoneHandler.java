@@ -1,4 +1,4 @@
-package dev.slimevr.protocol.autobone;
+package dev.slimevr.autobone;
 
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -8,7 +8,6 @@ import java.util.concurrent.locks.ReentrantLock;
 import org.apache.commons.lang3.tuple.Pair;
 
 import dev.slimevr.VRServer;
-import dev.slimevr.autobone.AutoBone;
 import dev.slimevr.poserecorder.PoseFrames;
 import dev.slimevr.poserecorder.PoseRecorder;
 import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
@@ -69,6 +68,31 @@ public class AutoBoneHandler {
 		});
 	}
 
+	public boolean startProcessByType(AutoBoneProcessType processType) {
+		switch (processType) {
+			case RECORD:
+			startRecording();
+			break;
+
+			case SAVE:
+			saveRecording();
+			break;
+
+			case PROCESS:
+			processRecording();
+			break;
+
+			case APPLY:
+			applyValues();
+			break;
+
+			default:
+			return false;
+		}
+
+		return true;
+	}
+
 	public void startRecording() {
 		recordingLock.lock();
 
@@ -103,10 +127,11 @@ public class AutoBoneHandler {
 					autoBone.saveRecording(frames);
 				}
 
-				announceProcessStatus(AutoBoneProcessType.RECORD, "Done recording!", true, true);
 				listeners.forEach(listener -> {
 					listener.onAutoBoneRecordingEnd(frames);
 				});
+
+				announceProcessStatus(AutoBoneProcessType.RECORD, "Done recording!", true, true);
 			} else {
 				announceProcessStatus(AutoBoneProcessType.RECORD, "The server is not ready to record", true, false);
 				LogManager.log.severe("[AutoBone] Unable to record...");
@@ -261,10 +286,11 @@ public class AutoBoneHandler {
 			}
 			//#endregion
 
-			announceProcessStatus(AutoBoneProcessType.PROCESS, "Done processing!", true, true);
 			listeners.forEach(listener -> {
 				listener.onAutoBoneEnd(autoBone.configs);
 			});
+
+			announceProcessStatus(AutoBoneProcessType.PROCESS, "Done processing!", true, true);
 		} catch (Exception e) {
 			announceProcessStatus(AutoBoneProcessType.PROCESS, String.format("Processing failed: %s", e.getMessage()), true, false);
 			LogManager.log.severe("[AutoBone] Failed adjustment!", e);
@@ -275,7 +301,7 @@ public class AutoBoneHandler {
 
 	public void applyValues() {
 		autoBone.applyConfig();
-		announceProcessStatus(AutoBoneProcessType.APPLY, "Adjusted values applied!");
+		announceProcessStatus(AutoBoneProcessType.APPLY, "Adjusted values applied!", true, true);
 		// TODO Update GUI values after applying? Is that needed here?
 	}
 }

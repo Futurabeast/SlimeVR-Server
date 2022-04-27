@@ -15,11 +15,11 @@ import io.eiren.util.ann.AWTThread;
 import javax.swing.event.MouseInputAdapter;
 
 import dev.slimevr.VRServer;
+import dev.slimevr.autobone.AutoBoneListener;
+import dev.slimevr.autobone.AutoBoneProcessType;
 import dev.slimevr.autobone.AutoBone.Epoch;
 import dev.slimevr.gui.swing.EJBox;
 import dev.slimevr.poserecorder.PoseFrames;
-import dev.slimevr.protocol.autobone.AutoBoneListener;
-import dev.slimevr.protocol.autobone.AutoBoneProcessType;
 import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
 
 public class AutoBoneWindow extends JFrame implements AutoBoneListener {

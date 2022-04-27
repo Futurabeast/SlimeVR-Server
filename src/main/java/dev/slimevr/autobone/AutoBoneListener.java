@@ -1,4 +1,4 @@
-package dev.slimevr.protocol.autobone;
+package dev.slimevr.autobone;
 
 import java.util.EnumMap;
 
