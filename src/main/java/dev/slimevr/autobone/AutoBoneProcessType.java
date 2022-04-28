@@ -4,10 +4,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 public enum AutoBoneProcessType {
-	RECORD(0),
-	SAVE(1),
-	PROCESS(2),
-	APPLY(3);
+	NONE(0),
+	RECORD(1),
+	SAVE(2),
+	PROCESS(3),
+	APPLY(4);
 
 	public final int id;
 	
