@@ -9,6 +9,7 @@ import dev.slimevr.autobone.AutoBoneProcessType;
 import dev.slimevr.autobone.AutoBone.Epoch;
 import dev.slimevr.platform.windows.WindowsNamedPipeBridge;
 import dev.slimevr.poserecorder.PoseFrames;
+import dev.slimevr.poserecorder.PoseRecorder.RecordingProgress;
 import dev.slimevr.serial.SerialListener;
 import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
 import dev.slimevr.vr.trackers.*;
@@ -369,6 +370,10 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 		});
 	}
 
+	@Override
+	public void onAutoBoneRecordingProgress(RecordingProgress progress) {
+		// TODO Write recording progress into the protocol
+	}
 
 	@Override
 	public void onAutoBoneRecordingEnd(PoseFrames recording) {

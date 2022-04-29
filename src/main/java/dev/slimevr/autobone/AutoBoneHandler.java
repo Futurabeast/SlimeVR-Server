@@ -118,7 +118,11 @@ public class AutoBoneHandler {
 				// 1000 samples at 20 ms per sample is 20 seconds
 				int sampleCount = server.config.getInt("autobone.sampleCount", 1000);
 				long sampleRate = server.config.getLong("autobone.sampleRateMs", 20L);
-				Future<PoseFrames> framesFuture = poseRecorder.startFrameRecording(sampleCount, sampleRate);
+				Future<PoseFrames> framesFuture = poseRecorder.startFrameRecording(sampleCount, sampleRate, progress -> {
+					listeners.forEach(listener -> {
+						listener.onAutoBoneRecordingProgress(progress);
+					});
+				});
 				PoseFrames frames = framesFuture.get();
 				LogManager.log.info("[AutoBone] Done recording!");
 				

@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -15,6 +16,17 @@ import io.eiren.util.logging.LogManager;
 
 public class PoseRecorder {
 	
+	public class RecordingProgress {
+
+		public final int frame;
+		public final int totalFrames;
+
+		public RecordingProgress(int frame, int totalFrames) {
+			this.frame = frame;
+			this.totalFrames = totalFrames;
+		}
+	}
+
 	protected PoseFrames poseFrame = null;
 	
 	protected int numFrames = -1;
@@ -23,6 +35,7 @@ public class PoseRecorder {
 	protected long nextFrameTimeMs = -1L;
 	
 	protected CompletableFuture<PoseFrames> currentRecording;
+	protected Consumer<RecordingProgress> currentFrameCallback;
 	
 	protected final VRServer server;
 	FastList<Pair<Tracker, PoseFrameTracker>> trackers = new FastList<Pair<Tracker, PoseFrameTracker>>();
@@ -71,6 +84,10 @@ public class PoseRecorder {
 				// Add a frame for each tracker
 				tracker.getRight().addFrame(cursor, tracker.getLeft());
 			}
+
+			if (currentFrameCallback != null) {
+				currentFrameCallback.accept(new RecordingProgress(frameCursor, numFrames));
+			}
 			
 			// If done, send finished recording
 			if(frameCursor >= numFrames) {
@@ -80,10 +97,18 @@ public class PoseRecorder {
 	}
 	
 	public synchronized Future<PoseFrames> startFrameRecording(int numFrames, long intervalMs) {
-		return startFrameRecording(numFrames, intervalMs, server.getAllTrackers());
+		return startFrameRecording(numFrames, intervalMs, server.getAllTrackers(), null);
+	}
+
+	public synchronized Future<PoseFrames> startFrameRecording(int numFrames, long intervalMs, Consumer<RecordingProgress> frameCallback) {
+		return startFrameRecording(numFrames, intervalMs, server.getAllTrackers(), frameCallback);
 	}
 	
 	public synchronized Future<PoseFrames> startFrameRecording(int numFrames, long intervalMs, List<Tracker> trackers) {
+		return startFrameRecording(numFrames, intervalMs, trackers, null);
+	}
+
+	public synchronized Future<PoseFrames> startFrameRecording(int numFrames, long intervalMs, List<Tracker> trackers, Consumer<RecordingProgress> frameCallback) {
 		if(numFrames < 1) {
 			throw new IllegalArgumentException("numFrames must at least have a value of 1");
 		}
@@ -128,6 +153,7 @@ public class PoseRecorder {
 		
 		LogManager.log.info("[PoseRecorder] Recording " + numFrames + " samples at a " + intervalMs + " ms frame interval");
 		
+		currentFrameCallback = frameCallback;
 		currentRecording = new CompletableFuture<PoseFrames>();
 		return currentRecording;
 	}

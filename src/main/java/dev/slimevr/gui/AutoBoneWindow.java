@@ -20,6 +20,7 @@ import dev.slimevr.autobone.AutoBoneProcessType;
 import dev.slimevr.autobone.AutoBone.Epoch;
 import dev.slimevr.gui.swing.EJBox;
 import dev.slimevr.poserecorder.PoseFrames;
+import dev.slimevr.poserecorder.PoseRecorder.RecordingProgress;
 import dev.slimevr.vr.processor.skeleton.SkeletonConfigValue;
 
 public class AutoBoneWindow extends JFrame implements AutoBoneListener {
@@ -144,6 +145,11 @@ public class AutoBoneWindow extends JFrame implements AutoBoneListener {
 	@Override
 	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
 		processLabel.setText(String.format("%s: %s", processType.name(), message));
+	}
+
+	@Override
+	public void onAutoBoneRecordingProgress(RecordingProgress progress) {
+		processLabel.setText(String.format("RECORD: Frame %d/%d (%.2f%%)", progress.frame, progress.totalFrames, (progress.frame / (double)progress.totalFrames) * 100.0));
 	}
 
 	@Override
