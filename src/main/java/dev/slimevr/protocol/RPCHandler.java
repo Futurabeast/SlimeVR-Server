@@ -356,9 +356,11 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 					.forEach((conn) -> {
 						FlatBufferBuilder fbb = new FlatBufferBuilder(32);
 
+						Integer messageOffset = message != null ? fbb.createString(message) : null;
+
 						AutoBoneProcessStatus.startAutoBoneProcessStatus(fbb);
 						AutoBoneProcessStatus.addProcessType(fbb, processType.id);
-						if (message != null) AutoBoneProcessStatus.addMessage(fbb, fbb.createString(message));
+						if (messageOffset != null) AutoBoneProcessStatus.addMessage(fbb, messageOffset);
 						if (total > 0 && current >= 0) {
 							AutoBoneProcessStatus.addCurrent(fbb, current);
 							AutoBoneProcessStatus.addTotal(fbb, total);
