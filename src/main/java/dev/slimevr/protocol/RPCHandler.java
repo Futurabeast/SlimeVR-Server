@@ -347,7 +347,7 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 	}
 
 	@Override
-	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
+	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, long current, long total, boolean completed, boolean success) {
 		this.api.getAPIServers().forEach((server) -> {
 			server.getAPIConnections()
 					.values()
@@ -356,9 +356,16 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 					.forEach((conn) -> {
 						FlatBufferBuilder fbb = new FlatBufferBuilder(32);
 
-						int messageOffset = fbb.createString(message);
-
-						int update = AutoBoneProcessStatus.createAutoBoneProcessStatus(fbb, processType.id, messageOffset, completed, success);
+						AutoBoneProcessStatus.startAutoBoneProcessStatus(fbb);
+						AutoBoneProcessStatus.addProcessType(fbb, processType.id);
+						if (message != null) AutoBoneProcessStatus.addMessage(fbb, fbb.createString(message));
+						if (total > 0 && current >= 0) {
+							AutoBoneProcessStatus.addCurrent(fbb, current);
+							AutoBoneProcessStatus.addTotal(fbb, total);
+						}
+						AutoBoneProcessStatus.addCompleted(fbb, completed);
+						AutoBoneProcessStatus.addSuccess(fbb, success);
+						int update = AutoBoneProcessStatus.endAutoBoneProcessStatus(fbb);
 						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneProcessStatus, update);
 						fbb.finish(outbound);
 
@@ -371,15 +378,9 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 	}
 
 	@Override
-	public void onAutoBoneRecordingProgress(RecordingProgress progress) {
-		// TODO Write recording progress into the protocol
-	}
-
-	@Override
 	public void onAutoBoneRecordingEnd(PoseFrames recording) {
 		// Do nothing, this is broadcasted by "onAutoBoneProcessStatus" uwu
 	}
-
 
 	@Override
 	public void onAutoBoneEpoch(Epoch epoch) {

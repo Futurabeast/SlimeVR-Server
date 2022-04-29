@@ -143,13 +143,18 @@ public class AutoBoneWindow extends JFrame implements AutoBoneListener {
 	}
 
 	@Override
-	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
-		processLabel.setText(String.format("%s: %s", processType.name(), message));
-	}
-
-	@Override
-	public void onAutoBoneRecordingProgress(RecordingProgress progress) {
-		processLabel.setText(String.format("RECORD: Frame %d/%d (%.2f%%)", progress.frame, progress.totalFrames, (progress.frame / (double)progress.totalFrames) * 100.0));
+	public void onAutoBoneProcessStatus(AutoBoneProcessType processType, String message, long current, long total, boolean completed, boolean success) {
+		if (message != null) {
+			if (total == 0) {
+				processLabel.setText(String.format("%s: %s", processType.name(), message));
+			} else {
+				processLabel.setText(String.format("%s (%d/%d) [%.2f%%]: %s", processType.name(), current, total, (current / (double)total) * 100.0, message));
+			}
+		} else {
+			if (total != 0) {
+				processLabel.setText(String.format("%s (%d/%d) [%.2f%%]", processType.name(), current, total, (current / (double)total) * 100.0));
+			}
+		}
 	}
 
 	@Override

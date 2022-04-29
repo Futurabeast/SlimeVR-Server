@@ -46,14 +46,22 @@ public class AutoBoneHandler {
 		this.listeners.removeIf(l -> listener == l);
 	}
 
-	private void announceProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
+	private void announceProcessStatus(AutoBoneProcessType processType, String message, long current, long total, boolean completed, boolean success) {
 		listeners.forEach(listener -> {
-			listener.onAutoBoneProcessStatus(processType, message, completed, success);
+			listener.onAutoBoneProcessStatus(processType, message, current, total, completed, success);
 		});
+	}
+
+	private void announceProcessStatus(AutoBoneProcessType processType, String message, boolean completed, boolean success) {
+		announceProcessStatus(processType, message, 0, 0, completed, success);
 	}
 
 	private void announceProcessStatus(AutoBoneProcessType processType, String message) {
 		announceProcessStatus(processType, message, false, true);
+	}
+
+	private void announceProcessStatus(AutoBoneProcessType processType, long current, long total) {
+		announceProcessStatus(processType, null, current, total, false, true);
 	}
 
 	public String getLengthsString() {
@@ -119,9 +127,7 @@ public class AutoBoneHandler {
 				int sampleCount = server.config.getInt("autobone.sampleCount", 1000);
 				long sampleRate = server.config.getLong("autobone.sampleRateMs", 20L);
 				Future<PoseFrames> framesFuture = poseRecorder.startFrameRecording(sampleCount, sampleRate, progress -> {
-					listeners.forEach(listener -> {
-						listener.onAutoBoneRecordingProgress(progress);
-					});
+					announceProcessStatus(AutoBoneProcessType.RECORD, progress.frame, progress.totalFrames);
 				});
 				PoseFrames frames = framesFuture.get();
 				LogManager.log.info("[AutoBone] Done recording!");
