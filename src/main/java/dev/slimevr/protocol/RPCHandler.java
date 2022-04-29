@@ -358,17 +358,17 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 
 						Integer messageOffset = message != null ? fbb.createString(message) : null;
 
-						AutoBoneProcessStatus.startAutoBoneProcessStatus(fbb);
-						AutoBoneProcessStatus.addProcessType(fbb, processType.id);
-						if (messageOffset != null) AutoBoneProcessStatus.addMessage(fbb, messageOffset);
+						AutoBoneProcessStatusResponse.startAutoBoneProcessStatusResponse(fbb);
+						AutoBoneProcessStatusResponse.addProcessType(fbb, processType.id);
+						if (messageOffset != null) AutoBoneProcessStatusResponse.addMessage(fbb, messageOffset);
 						if (total > 0 && current >= 0) {
-							AutoBoneProcessStatus.addCurrent(fbb, current);
-							AutoBoneProcessStatus.addTotal(fbb, total);
+							AutoBoneProcessStatusResponse.addCurrent(fbb, current);
+							AutoBoneProcessStatusResponse.addTotal(fbb, total);
 						}
-						AutoBoneProcessStatus.addCompleted(fbb, completed);
-						AutoBoneProcessStatus.addSuccess(fbb, success);
-						int update = AutoBoneProcessStatus.endAutoBoneProcessStatus(fbb);
-						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneProcessStatus, update);
+						AutoBoneProcessStatusResponse.addCompleted(fbb, completed);
+						AutoBoneProcessStatusResponse.addSuccess(fbb, success);
+						int update = AutoBoneProcessStatusResponse.endAutoBoneProcessStatusResponse(fbb);
+						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneProcessStatusResponse, update);
 						fbb.finish(outbound);
 
 						conn.send(fbb.dataBuffer());
@@ -400,10 +400,10 @@ public class RPCHandler extends ProtocolHandler<RpcMessageHeader> implements Ser
 							skeletonPartOffsets[i++] = SkeletonPart.createSkeletonPart(fbb, skeletonConfig.getKey().id, skeletonConfig.getValue());
 						}
 
-						int skeletonPartsOffset = AutoBoneEpoch.createAdjustedSkeletonPartsVector(fbb, skeletonPartOffsets);
+						int skeletonPartsOffset = AutoBoneEpochResponse.createAdjustedSkeletonPartsVector(fbb, skeletonPartOffsets);
 
-						int update = AutoBoneEpoch.createAutoBoneEpoch(fbb, epoch.epoch, epoch.totalEpochs, epoch.epochError, skeletonPartsOffset);
-						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneEpoch, update);
+						int update = AutoBoneEpochResponse.createAutoBoneEpochResponse(fbb, epoch.epoch, epoch.totalEpochs, epoch.epochError, skeletonPartsOffset);
+						int outbound = this.createRPCMessage(fbb, RpcMessage.AutoBoneEpochResponse, update);
 						fbb.finish(outbound);
 
 						conn.send(fbb.dataBuffer());
