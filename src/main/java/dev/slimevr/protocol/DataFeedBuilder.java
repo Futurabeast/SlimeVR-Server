@@ -9,9 +9,7 @@ import dev.slimevr.vr.trackers.udp.Device;
 import solarxr_protocol.data_feed.DataFeedUpdate;
 import solarxr_protocol.data_feed.device_data.DeviceData;
 import solarxr_protocol.data_feed.device_data.DeviceDataMaskT;
-import solarxr_protocol.data_feed.tracker.TrackerData;
-import solarxr_protocol.data_feed.tracker.TrackerDataMaskT;
-import solarxr_protocol.data_feed.tracker.TrackerInfo;
+import solarxr_protocol.data_feed.tracker.*;
 import solarxr_protocol.datatypes.DeviceId;
 import solarxr_protocol.datatypes.Temperature;
 import solarxr_protocol.datatypes.TrackerId;
@@ -29,6 +27,7 @@ public class DataFeedBuilder {
 		IMUTracker tracker = device.sensors.get(0);
 
 		HardwareInfo.startHardwareInfo(fbb);
+
 		// BRUH MOMENT
 		//TODO need support:  HardwareInfo.addFirmwareVersion(fbb, firmwareVersionOffset);
 		//TODO need support:  HardwareInfo.addHardwareRevision(fbb, hardwareRevisionOffset);
@@ -49,21 +48,24 @@ public class DataFeedBuilder {
 		return TrackerId.endTrackerId(fbb);
 	}
 
-	public static int createTrackerInfos(FlatBufferBuilder fbb, boolean infoMask, Tracker tracker) {
-
-		if (!infoMask) return 0;
+	public static int createTrackerInfos(FlatBufferBuilder fbb, TrackerInfoMaskT infoMask, Tracker tracker) {
 
 		TrackerInfo.startTrackerInfo(fbb);
-		if (tracker.getBodyPosition() != null)
+		if (infoMask.getBodyPart() && tracker.getBodyPosition() != null) {
 			TrackerInfo.addBodyPart(fbb, tracker.getBodyPosition().id);
-		TrackerInfo.addEditable(fbb, tracker.userEditable());
-		TrackerInfo.addComputed(fbb, tracker.isComputed());
+		}
+		if (infoMask.getEditable()) {
+			TrackerInfo.addEditable(fbb, tracker.userEditable());
+		}
+		if (infoMask.getComputed()) {
+			TrackerInfo.addComputed(fbb, tracker.isComputed());
+		}
 		//TODO need support:  TrackerInfo.addImuType(fbb, tracker.im);
 		//TODO need support:  TrackerInfo.addPollRate(fbb, tracker.);
 
 		if (tracker instanceof IMUTracker) {
 			IMUTracker imuTracker = (IMUTracker) tracker;
-			if (imuTracker.getMountingRotation() != null) {
+			if (infoMask.getMountingOrientation() && imuTracker.getMountingRotation() != null) {
 				Quaternion quaternion = imuTracker.getMountingRotation();
 				TrackerInfo.addMountingOrientation(fbb,
 						Quat.createQuat(fbb,
@@ -161,7 +163,7 @@ public class DataFeedBuilder {
 				tracker.temperature,
 				tracker.getBatteryVoltage(),
 				(int) tracker.getBatteryLevel(),
-				-1
+				0
 		);
 		int hardwareInfoOffset = DataFeedBuilder.createHardwareInfo(fbb, device);
 		int trackersOffset = DataFeedBuilder.createTrackersData(fbb, mask, device);
