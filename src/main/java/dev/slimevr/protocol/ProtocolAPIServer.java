@@ -1,8 +1,9 @@
 package dev.slimevr.protocol;
 
-import java.util.Map;
+import java.util.stream.Stream;
+
 
 public interface ProtocolAPIServer {
 
-	Map<Integer, GenericConnection> getAPIConnections();
+	Stream<GenericConnection> getAPIConnections();
 }

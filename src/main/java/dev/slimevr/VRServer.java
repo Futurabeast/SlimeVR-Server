@@ -28,6 +28,7 @@ import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.function.Consumer;
 
+
 public class VRServer extends Thread {
 
 	public final HumanPoseProcessor humanPoseProcessor;
@@ -59,7 +60,8 @@ public class VRServer extends Thread {
 		protocolAPI = new ProtocolAPI(this);
 
 		hmdTracker = new HMDTracker("HMD");
-		hmdTracker.position.set(0, 1.8f, 0); // Set starting position for easier debugging
+		hmdTracker.position.set(0, 1.8f, 0); // Set starting position for easier
+												// debugging
 		// TODO Multiple processors
 		humanPoseProcessor = new HumanPoseProcessor(this, hmdTracker);
 		shareTrackers = humanPoseProcessor.getComputedTrackers();
@@ -71,13 +73,25 @@ public class VRServer extends Thread {
 		if (OperatingSystem.getCurrentPlatform() == OperatingSystem.WINDOWS) {
 
 			// Create named pipe bridge for SteamVR driver
-			WindowsNamedPipeBridge driverBridge = new WindowsNamedPipeBridge(hmdTracker, "steamvr", "SteamVR Driver Bridge", "\\\\.\\pipe\\SlimeVRDriver", shareTrackers);
+			WindowsNamedPipeBridge driverBridge = new WindowsNamedPipeBridge(
+				hmdTracker,
+				"steamvr",
+				"SteamVR Driver Bridge",
+				"\\\\.\\pipe\\SlimeVRDriver",
+				shareTrackers
+			);
 			tasks.add(() -> driverBridge.startBridge());
 			bridges.add(driverBridge);
 
 			// Create named pipe bridge for SteamVR input
 			// TODO: how do we want to handle HMD input from the feeder app?
-			WindowsNamedPipeBridge feederBridge = new WindowsNamedPipeBridge(null, "steamvr_feeder", "SteamVR Feeder Bridge", "\\\\.\\pipe\\SlimeVRInput", new FastList<ShareableTracker>());
+			WindowsNamedPipeBridge feederBridge = new WindowsNamedPipeBridge(
+				null,
+				"steamvr_feeder",
+				"SteamVR Feeder Bridge",
+				"\\\\.\\pipe\\SlimeVRInput",
+				new FastList<ShareableTracker>()
+			);
 			tasks.add(() -> feederBridge.startBridge());
 			bridges.add(feederBridge);
 		}
@@ -222,7 +236,7 @@ public class VRServer extends Thread {
 	public void run() {
 		trackersServer.start();
 		while (true) {
-//			final long start = System.currentTimeMillis();
+			// final long start = System.currentTimeMillis();
 			do {
 				Runnable task = tasks.poll();
 				if (task == null)
@@ -242,11 +256,10 @@ public class VRServer extends Thread {
 			for (Bridge bridge : bridges) {
 				bridge.dataWrite();
 			}
-//			final long time = System.currentTimeMillis() - start;
+			// final long time = System.currentTimeMillis() - start;
 			try {
 				Thread.sleep(1); // 1000Hz
-			} catch (InterruptedException e) {
-			}
+			} catch (InterruptedException e) {}
 		}
 	}
 
@@ -313,15 +326,24 @@ public class VRServer extends Thread {
 
 	public Tracker getTrackerById(TrackerIdT id) {
 		for (Tracker tracker : trackers) {
-			if (tracker.getTrackerNum() != id.getTrackerNum())
+			if (tracker.getTrackerNum() != id.getTrackerNum()) {
 				continue;
-			if (tracker.getDevice() == null && id.getDeviceId() != null)
-				continue;
-			if (tracker.getDevice() != null && id.getDeviceId() == null)
-				continue;
-			if (tracker.getDevice().getId() != id.getDeviceId().getId())
-				continue;
-			return tracker;
+			}
+
+			// Handle synthetic devices
+			if (id.getDeviceId() == null && tracker.getDevice() == null) {
+				return tracker;
+			}
+
+			if (
+				tracker.getDevice() != null
+					&& id.getDeviceId() != null
+					&& id.getDeviceId().getId() == tracker.getDevice().getId()
+			) {
+				// This is a physical tracker, and both device id and the
+				// tracker num match
+				return tracker;
+			}
 		}
 		return null;
 	}
