@@ -1,4 +1,4 @@
-package dev.slimevr.vr;
+package dev.slimevr.protocol;
 
 import solarxr_protocol.data_feed.device_data.DeviceDataT;
 import solarxr_protocol.datatypes.DeviceIdT;
@@ -7,7 +7,8 @@ import solarxr_protocol.datatypes.hardware_info.HardwareInfoT;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class Device {
+
+public class DeviceBuilder {
 
 	public static final AtomicInteger nextLocalDeviceId = new AtomicInteger();
 
@@ -33,10 +34,7 @@ public class Device {
 		return hardwareInfoT;
 	}
 
-	static DeviceDataT createDevice(
-		String name,
-		HardwareInfoT hardwareInfoT
-	) {
+	static DeviceDataT createDevice(String name, HardwareInfoT hardwareInfoT) {
 		DeviceDataT deviceData = new DeviceDataT();
 		DeviceIdT deviceIdT = new DeviceIdT();
 

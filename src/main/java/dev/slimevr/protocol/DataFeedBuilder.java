@@ -51,24 +51,23 @@ public class DataFeedBuilder {
 		return TrackerId.endTrackerId(fbb);
 	}
 
-	public static int createTrackerInfos(FlatBufferBuilder fbb, TrackerInfoMaskT infoMask, Tracker tracker) {
+	public static int createTrackerInfos(
+		FlatBufferBuilder fbb,
+		TrackerInfoMaskT infoMask,
+		Tracker tracker
+	) {
 		if (infoMask == null)
 			return 0;
 
 		TrackerInfo.startTrackerInfo(fbb);
-		if (infoMask.getBodyPart() && tracker.getBodyPosition() != null) {
-			TrackerInfo.addBodyPart(fbb, tracker.getBodyPosition().id);
-		}
 		if (infoMask.getEditable()) {
 			TrackerInfo.addEditable(fbb, tracker.userEditable());
 		}
 		if (infoMask.getComputed()) {
 			TrackerInfo.addComputed(fbb, tracker.isComputed());
 		}
-		//TODO need support:  TrackerInfo.addImuType(fbb, tracker.im);
-		//TODO need support:  TrackerInfo.addPollRate(fbb, tracker.);
-		TrackerInfo.addEditable(fbb, tracker.userEditable());
-		TrackerInfo.addComputed(fbb, tracker.isComputed());
+		if (infoMask.getBodyPart() && tracker.getBodyPosition() != null)
+			TrackerInfo.addBodyPart(fbb, tracker.getBodyPosition().bodyPart);
 		// TODO need support: TrackerInfo.addImuType(fbb, tracker.im);
 		// TODO need support: TrackerInfo.addPollRate(fbb, tracker.);
 		if (tracker instanceof IMUTracker) {
@@ -196,7 +195,7 @@ public class DataFeedBuilder {
 				tracker.getBatteryVoltage(),
 				(int) tracker.getBatteryLevel(),
 				0
-		);
+			);
 		int hardwareInfoOffset = DataFeedBuilder.createHardwareInfo(fbb, device);
 		int trackersOffset = DataFeedBuilder.createTrackersData(fbb, mask, device);
 

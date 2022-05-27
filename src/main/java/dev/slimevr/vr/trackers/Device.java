@@ -1,11 +1,20 @@
 package dev.slimevr.vr.trackers;
 
-import java.util.concurrent.atomic.AtomicInteger;
+public class Device implements IDevice {
 
+	private final int id;
+	private final String name;
 
-public interface Device {
+	public Device(String name) {
+		this.id = nextLocalDeviceId.incrementAndGet();
+		this.name = name;
+	}
 
-	public static final AtomicInteger nextLocalDeviceId = new AtomicInteger();
+	public int getId() {
+		return id;
+	}
 
-	int getId();
+	public String getName() {
+		return name;
+	}
 }

@@ -1,7 +1,7 @@
 package dev.slimevr.vr.trackers.udp;
 
 import dev.slimevr.NetworkProtocol;
-import dev.slimevr.vr.trackers.Device;
+import dev.slimevr.vr.trackers.IDevice;
 import dev.slimevr.vr.trackers.IMUTracker;
 
 import java.net.InetAddress;
@@ -10,7 +10,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 
-public class UDPDevice implements Device {
+public class UDPDevice implements IDevice {
 
 	public final int id;
 	public Map<Integer, IMUTracker> sensors = new HashMap<>();
