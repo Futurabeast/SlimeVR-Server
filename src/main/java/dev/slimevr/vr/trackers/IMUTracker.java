@@ -4,7 +4,6 @@ import com.jme3.math.FastMath;
 import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import dev.slimevr.VRServer;
-import dev.slimevr.vr.trackers.udp.UDPDevice;
 import dev.slimevr.vr.trackers.udp.TrackersUDPServer;
 import io.eiren.util.BufferedTimer;
 
@@ -19,12 +18,12 @@ public class IMUTracker implements Tracker, TrackerWithTPS, TrackerWithBattery {
 	public final Quaternion rotQuaternion = new Quaternion();
 	public final Quaternion rotMagQuaternion = new Quaternion();
 	public final Quaternion rotAdjust = new Quaternion();
-	public final UDPDevice device;
+	public final IDevice device;
 	public final int trackerNum;
 	protected final Quaternion correction = new Quaternion();
 	protected final int trackerId;
 	protected final String name;
-	protected final String descriptiveName;
+//	protected final String descriptiveName;
 	protected final TrackersUDPServer server;
 	protected final VRServer vrserver;
 	private final Quaternion buffQuat = new Quaternion();
@@ -48,11 +47,11 @@ public class IMUTracker implements Tracker, TrackerWithTPS, TrackerWithBattery {
 	protected BufferedTimer timer = new BufferedTimer(1f);
 
 	public IMUTracker(
-		UDPDevice device,
+		IDevice device,
 		int trackerId,
 		int trackerNum,
 		String name,
-		String descriptiveName,
+//		String descriptiveName,
 		TrackersUDPServer server,
 		VRServer vrserver
 	) {
@@ -61,7 +60,7 @@ public class IMUTracker implements Tracker, TrackerWithTPS, TrackerWithBattery {
 		this.name = name;
 		this.server = server;
 		this.trackerId = trackerId;
-		this.descriptiveName = descriptiveName;
+//		this.descriptiveName = descriptiveName;
 		this.vrserver = vrserver;
 	}
 
@@ -299,14 +298,14 @@ public class IMUTracker implements Tracker, TrackerWithTPS, TrackerWithBattery {
 	}
 
 	@Override
-	public UDPDevice getDevice() {
+	public IDevice getDevice() {
 		return this.device;
 	}
 
-	@Override
-	public String getDescriptiveName() {
-		return this.descriptiveName;
-	}
+//	@Override
+//	public String getDescriptiveName() {
+//		return this.descriptiveName;
+//	}
 
 	public enum CalibrationAccuracy {
 

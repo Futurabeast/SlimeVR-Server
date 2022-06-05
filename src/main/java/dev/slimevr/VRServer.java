@@ -112,10 +112,10 @@ public class VRServer extends Thread {
 
 		bvhRecorder = new BVHRecorder(this);
 
-		registerTracker(hmdTracker);
-		for (Tracker tracker : shareTrackers) {
-			registerTracker(tracker);
-		}
+//		registerTracker(hmdTracker);
+//		for (Tracker tracker : shareTrackers) {
+//			registerTracker(tracker);
+//		}
 	}
 
 	public boolean hasBridge(Class<? extends Bridge> bridgeClass) {

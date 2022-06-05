@@ -5,11 +5,14 @@ import com.jme3.math.Quaternion;
 import com.jme3.math.Vector3f;
 import dev.slimevr.vr.trackers.IMUTracker;
 import dev.slimevr.vr.trackers.Tracker;
-import dev.slimevr.vr.trackers.udp.UDPDevice;
+import dev.slimevr.vr.trackers.udp.TrackerUDPConnection;
 import solarxr_protocol.data_feed.DataFeedUpdate;
 import solarxr_protocol.data_feed.device_data.DeviceData;
 import solarxr_protocol.data_feed.device_data.DeviceDataMaskT;
-import solarxr_protocol.data_feed.tracker.*;
+import solarxr_protocol.data_feed.tracker.TrackerData;
+import solarxr_protocol.data_feed.tracker.TrackerDataMaskT;
+import solarxr_protocol.data_feed.tracker.TrackerInfo;
+import solarxr_protocol.data_feed.tracker.TrackerInfoMaskT;
 import solarxr_protocol.datatypes.DeviceId;
 import solarxr_protocol.datatypes.Temperature;
 import solarxr_protocol.datatypes.TrackerId;
@@ -24,8 +27,8 @@ import java.util.List;
 
 public class DataFeedBuilder {
 
-	public static int createHardwareInfo(FlatBufferBuilder fbb, UDPDevice device) {
-		IMUTracker tracker = device.sensors.get(0);
+	public static int createHardwareInfo(FlatBufferBuilder fbb, TrackerUDPConnection device) {
+		IMUTracker tracker = (IMUTracker) device.getDevice().getTrackers().get(0);
 
 		HardwareInfo.startHardwareInfo(fbb);
 
@@ -151,14 +154,14 @@ public class DataFeedBuilder {
 	public static int createTrackersData(
 		FlatBufferBuilder fbb,
 		DeviceDataMaskT mask,
-		UDPDevice device
+		TrackerUDPConnection device
 	) {
 		if (mask.getTrackerData() == null)
 			return 0;
 
 		List<Integer> trackersOffsets = new ArrayList<>();
 
-		device.sensors.forEach((key, value) -> {
+		device.getDevice().getTrackers().forEach((value) -> {
 			trackersOffsets
 				.add(DataFeedBuilder.createTrackerData(fbb, mask.getTrackerData(), value));
 		});
@@ -174,12 +177,12 @@ public class DataFeedBuilder {
 		FlatBufferBuilder fbb,
 		int id,
 		DeviceDataMaskT mask,
-		UDPDevice device
+		TrackerUDPConnection device
 	) {
 		if (!mask.getDeviceData())
 			return 0;
 
-		IMUTracker tracker = device.sensors.get(0);
+		IMUTracker tracker = (IMUTracker) device.getDevice().getTrackers().get(0);
 
 		if (tracker == null)
 			return 0;
@@ -233,14 +236,14 @@ public class DataFeedBuilder {
 	public static int createDevicesData(
 		FlatBufferBuilder fbb,
 		DeviceDataMaskT deviceDataMaskT,
-		List<UDPDevice> devices
+		List<TrackerUDPConnection> devices
 	) {
 		if (deviceDataMaskT == null)
 			return 0;
 
 		int[] devicesDataOffsets = new int[devices.size()];
 		for (int i = 0; i < devices.size(); i++) {
-			UDPDevice device = devices.get(i);
+			TrackerUDPConnection device = devices.get(i);
 			devicesDataOffsets[i] = DataFeedBuilder
 				.createDeviceData(fbb, i, deviceDataMaskT, device);
 		}

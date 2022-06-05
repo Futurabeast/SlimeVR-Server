@@ -35,9 +35,9 @@ public class TrackersUDPServer extends Thread {
 
 	private final Quaternion buf = new Quaternion();
 	private final Random random = new Random();
-	private final List<UDPDevice> connections = new FastList<>();
-	private final Map<InetAddress, UDPDevice> connectionsByAddress = new HashMap<>();
-	private final Map<String, UDPDevice> connectionsByMAC = new HashMap<>();
+	private final List<TrackerUDPConnection> connections = new FastList<>();
+	private final Map<InetAddress, TrackerUDPConnection> connectionsByAddress = new HashMap<>();
+	private final Map<String, TrackerUDPConnection> connectionsByMAC = new HashMap<>();
 	private final Consumer<Tracker> trackersConsumer;
 	private final int port;
 	private final ArrayList<SocketAddress> broadcastAddresses = new ArrayList<>();
@@ -116,13 +116,14 @@ public class TrackersUDPServer extends Thread {
 					+ handshakePacket.getPort()
 			);
 		InetAddress addr = handshakePacket.getAddress();
-		UDPDevice connection;
+		TrackerUDPConnection connection;
 		synchronized (connections) {
 			connection = connectionsByAddress.get(addr);
 		}
 		if (connection == null) {
-			connection = new UDPDevice(handshakePacket.getSocketAddress(), addr);
-			connection.firmwareBuild = handshake.firmwareBuild;
+			connection = new TrackerUDPConnection(handshakePacket.getSocketAddress(), addr);
+			connection.setFirmwareBuild(handshake.firmwareBuild);
+			connection.getDevice().setFirmwareVersion("v" + handshake.firmwareBuild);
 			if (handshake.firmware == null || handshake.firmware.length() == 0) {
 				// Only old owoTrack doesn't report firmware and have different
 				// packet IDs with
@@ -131,24 +132,31 @@ public class TrackersUDPServer extends Thread {
 			} else {
 				connection.protocol = NetworkProtocol.SLIMEVR_RAW;
 			}
-			connection.name = handshake.macString != null
-				? "udp://" + handshake.macString
-				: "udp:/"
-					+ handshakePacket.getAddress().toString();
-			connection.descriptiveName = "udp:/" + handshakePacket.getAddress().toString();
+			connection
+				.getDevice()
+				.setCustomName(
+					handshake.macString != null
+						? "udp://" + handshake.macString
+						: "udp:/"
+							+ handshakePacket.getAddress().toString()
+				);
+//			connection.descriptiveName = "udp:/" + handshakePacket.getAddress().toString();
 			int i = 0;
 			synchronized (connections) {
 				if (
 					handshake.macString != null && connectionsByMAC.containsKey(handshake.macString)
 				) {
-					UDPDevice previousConnection = connectionsByMAC.get(handshake.macString);
+					TrackerUDPConnection previousConnection = connectionsByMAC
+						.get(handshake.macString);
 					i = connections.indexOf(previousConnection);
 					connectionsByAddress.remove(previousConnection.ipAddress);
 					previousConnection.lastPacketNumber = 0;
 					previousConnection.ipAddress = addr;
 					previousConnection.address = handshakePacket.getSocketAddress();
-					previousConnection.name = connection.name;
-					previousConnection.descriptiveName = connection.descriptiveName;
+					previousConnection
+						.getDevice()
+						.setCustomName(connection.getDevice().getCustomName());
+//					previousConnection.descriptiveName = connection.descriptiveName;
 					connectionsByAddress.put(addr, previousConnection);
 					LogManager
 						.info(
@@ -163,11 +171,11 @@ public class TrackersUDPServer extends Thread {
 								+ ", firmware: "
 								+ handshake.firmware
 								+ " ("
-								+ connection.firmwareBuild
+								+ connection.getDevice().getFirmwareVersion()
 								+ "), mac: "
 								+ handshake.macString
 								+ ", name: "
-								+ previousConnection.name
+								+ previousConnection.getDevice().getCustomName()
 						);
 				} else {
 					i = connections.size();
@@ -189,15 +197,18 @@ public class TrackersUDPServer extends Thread {
 								+ ", firmware: "
 								+ handshake.firmware
 								+ " ("
-								+ connection.firmwareBuild
+								+ connection.getDevice().getFirmwareVersion()
 								+ "), mac: "
 								+ handshake.macString
 								+ ", name: "
-								+ connection.name
+								+ connection.getDevice().getCustomName()
 						);
 				}
 			}
-			if (connection.protocol == NetworkProtocol.OWO_LEGACY || connection.firmwareBuild < 9) {
+			if (
+				connection.protocol == NetworkProtocol.OWO_LEGACY
+					|| connection.getFirmwareBuild() < 9
+			) {
 				// Set up new sensor for older firmware
 				// Firmware after 7 should send sensor status packet and sensor
 				// will be created
@@ -209,48 +220,62 @@ public class TrackersUDPServer extends Thread {
 		bb.rewind();
 		parser.writeHandshakeResponse(bb, connection);
 		socket.send(new DatagramPacket(rcvBuffer, bb.position(), connection.address));
+
+
+		// TODO Futurabeast: ADD Device to the list of devices
 	}
 
-	private void setUpSensor(UDPDevice connection, int trackerId, int sensorType, int sensorStatus)
+	private void setUpSensor(
+		TrackerUDPConnection connection,
+		int trackerId,
+		int sensorType,
+		int sensorStatus
+	)
 		throws IOException {
 		LogManager
 			.info(
 				"[TrackerServer] Sensor "
 					+ trackerId
 					+ " for "
-					+ connection.name
+					+ connection.getDevice().getCustomName()
 					+ " status: "
 					+ sensorStatus
 			);
-		IMUTracker imu = connection.sensors.get(trackerId);
-		if (imu == null) {
+		IMUTracker imu = null;
+		try {
+			imu = (IMUTracker) connection.getDevice().getTrackers().get(trackerId);
+		} catch (ArrayIndexOutOfBoundsException e) {
 			imu = new IMUTracker(
-				connection,
+				connection.getDevice(),
 				Tracker.getNextLocalTrackerId(),
 				trackerId,
-				connection.name + "/" + trackerId,
-				connection.descriptiveName + "/" + trackerId,
+				connection.getDevice().getCustomName() + "/" + trackerId,
+				// connection.descriptiveName + "/" + trackerId,
 				this,
 				Main.vrServer
 			);
-			connection.sensors.put(trackerId, imu);
-			ReferenceAdjustedTracker<IMUTracker> adjustedTracker = new ReferenceAdjustedTracker<>(
-				imu
+			connection.getDevice().getTrackers().add(imu);
+			ReferenceAdjustedTracker<IMUTracker> adjustedTracker = new ReferenceAdjustedTracker<IMUTracker>(
+				(IMUTracker) imu
 			);
+			// TODO: need replacement
 			trackersConsumer.accept(adjustedTracker);
 			LogManager
 				.info(
 					"[TrackerServer] Added sensor "
 						+ trackerId
 						+ " for "
-						+ connection.name
+						+ connection.getDevice().getCustomName()
 						+ ", type "
 						+ sensorType
 				);
+		} finally {
+			if (imu == null)
+				return;
+			TrackerStatus status = UDPPacket15SensorInfo.getStatus(sensorStatus);
+			if (status != null)
+				imu.setStatus(status);
 		}
-		TrackerStatus status = UDPPacket15SensorInfo.getStatus(sensorStatus);
-		if (status != null)
-			imu.setStatus(status);
 	}
 
 	@Override
@@ -265,8 +290,8 @@ public class TrackersUDPServer extends Thread {
 				DatagramPacket received = null;
 				try {
 					boolean hasActiveTrackers = false;
-					for (UDPDevice tracker : connections) {
-						if (tracker.sensors.size() > 0) {
+					for (TrackerUDPConnection conn : connections) {
+						if (conn.getDevice().getTrackers().size() > 0) {
 							hasActiveTrackers = true;
 							break;
 						}
@@ -289,7 +314,7 @@ public class TrackersUDPServer extends Thread {
 					bb.limit(received.getLength());
 					bb.rewind();
 
-					UDPDevice connection;
+					TrackerUDPConnection connection;
 
 					synchronized (connections) {
 						connection = connectionsByAddress.get(received.getAddress());
@@ -308,36 +333,36 @@ public class TrackersUDPServer extends Thread {
 				if (lastKeepup + 500 < System.currentTimeMillis()) {
 					lastKeepup = System.currentTimeMillis();
 					synchronized (connections) {
-						for (UDPDevice conn : connections) {
+						for (TrackerUDPConnection conn : connections) {
 							bb.limit(bb.capacity());
 							bb.rewind();
 							parser.write(bb, conn, new UDPPacket1Heartbeat());
 							socket.send(new DatagramPacket(rcvBuffer, bb.position(), conn.address));
 							if (conn.lastPacket + 1000 < System.currentTimeMillis()) {
-								Iterator<IMUTracker> iterator = conn.sensors.values().iterator();
-								while (iterator.hasNext()) {
-									IMUTracker tracker = iterator.next();
+								conn.getDevice().getTrackers().forEach((tracker) -> {
 									if (tracker.getStatus() == TrackerStatus.OK)
-										tracker.setStatus(TrackerStatus.DISCONNECTED);
-								}
+										((IMUTracker) tracker)
+											.setStatus(TrackerStatus.DISCONNECTED);
+								});
+
 								if (!conn.timedOut) {
 									conn.timedOut = true;
 									LogManager.info("[TrackerServer] Tracker timed out: " + conn);
 								}
 							} else {
 								conn.timedOut = false;
-								Iterator<IMUTracker> iterator = conn.sensors.values().iterator();
-								while (iterator.hasNext()) {
-									IMUTracker tracker = iterator.next();
+
+								conn.getDevice().getTrackers().forEach((tracker) -> {
 									if (tracker.getStatus() == TrackerStatus.DISCONNECTED)
-										tracker.setStatus(TrackerStatus.OK);
-								}
+										((IMUTracker) tracker)
+											.setStatus(TrackerStatus.OK);
+								});
 							}
 							if (conn.serialBuffer.length() > 0) {
 								if (conn.lastSerialUpdate + 500L < System.currentTimeMillis()) {
 									serialBuffer2
 										.append('[')
-										.append(conn.name)
+										.append(conn.getDevice().getCustomName())
 										.append("] ")
 										.append(conn.serialBuffer);
 									System.out.println(serialBuffer2);
@@ -369,7 +394,11 @@ public class TrackersUDPServer extends Thread {
 		}
 	}
 
-	protected void processPacket(DatagramPacket received, UDPPacket packet, UDPDevice connection)
+	protected void processPacket(
+		DatagramPacket received,
+		UDPPacket packet,
+		TrackerUDPConnection connection
+	)
 		throws IOException {
 		IMUTracker tracker = null;
 		switch (packet.getPacketId()) {
@@ -385,7 +414,9 @@ public class TrackersUDPServer extends Thread {
 				UDPPacket1Rotation rotationPacket = (UDPPacket1Rotation) packet;
 				buf.set(rotationPacket.rotation);
 				offset.mult(buf, buf);
-				tracker = connection.sensors.get(rotationPacket.getSensorId());
+				tracker = (IMUTracker) connection
+					.getDevice()
+					.getTracker(rotationPacket.getSensorId());
 				if (tracker == null)
 					break;
 				tracker.rotQuaternion.set(buf);
@@ -395,7 +426,9 @@ public class TrackersUDPServer extends Thread {
 				if (connection == null)
 					break;
 				UDPPacket17RotationData rotationData = (UDPPacket17RotationData) packet;
-				tracker = connection.sensors.get(rotationData.getSensorId());
+				tracker = (IMUTracker) connection
+					.getDevice()
+					.getTracker(rotationData.getSensorId());
 				if (tracker == null)
 					break;
 				buf.set(rotationData.rotation);
@@ -418,7 +451,9 @@ public class TrackersUDPServer extends Thread {
 				if (connection == null)
 					break;
 				UDPPacket18MagnetometerAccuracy magAccuracy = (UDPPacket18MagnetometerAccuracy) packet;
-				tracker = connection.sensors.get(magAccuracy.getSensorId());
+				tracker = (IMUTracker) connection
+					.getDevice()
+					.getTracker(magAccuracy.getSensorId());
 				if (tracker == null)
 					break;
 				tracker.magnetometerAccuracy = magAccuracy.accuracyInfo;
@@ -439,10 +474,11 @@ public class TrackersUDPServer extends Thread {
 					break;
 				UDPPacket10PingPong ping = (UDPPacket10PingPong) packet;
 				if (connection.lastPingPacketId == ping.pingId) {
-					for (IMUTracker imuTracker : connection.sensors.values()) {
-						imuTracker.ping = (int) (System.currentTimeMillis()
+					for (Tracker imuTracker : connection.getDevice().getTrackers()) {
+						IMUTracker t = (IMUTracker) imuTracker;
+						t.ping = (int) (System.currentTimeMillis()
 							- connection.lastPingPacketTime) / 2;
-						imuTracker.dataTick();
+						t.dataTick();
 					}
 				} else {
 					LogManager
@@ -458,27 +494,24 @@ public class TrackersUDPServer extends Thread {
 				if (connection == null)
 					break;
 				UDPPacket11Serial serial = (UDPPacket11Serial) packet;
-				System.out.println("[" + connection.name + "] " + serial.serial);
+				System.out
+					.println("[" + connection.getDevice().getCustomName() + "] " + serial.serial);
 				break;
 			case UDPProtocolParser.PACKET_BATTERY_LEVEL:
 				if (connection == null)
 					break;
 				UDPPacket12BatteryLevel battery = (UDPPacket12BatteryLevel) packet;
-				if (connection.sensors.size() > 0) {
-					Collection<IMUTracker> trackers = connection.sensors.values();
-					Iterator<IMUTracker> iterator = trackers.iterator();
-					while (iterator.hasNext()) {
-						IMUTracker tr = iterator.next();
-						tr.setBatteryVoltage(battery.voltage);
-						tr.setBatteryLevel(battery.level * 100);
-					}
-				}
+				connection.getDevice().getTrackers().forEach((t) -> {
+					IMUTracker tr = (IMUTracker) t;
+					tr.setBatteryVoltage(battery.voltage);
+					tr.setBatteryLevel(battery.level * 100);
+				});
 				break;
 			case UDPProtocolParser.PACKET_TAP:
 				if (connection == null)
 					break;
 				UDPPacket13Tap tap = (UDPPacket13Tap) packet;
-				tracker = connection.sensors.get(tap.getSensorId());
+				tracker = (IMUTracker) connection.getDevice().getTracker(tap.getSensorId());
 				if (tracker == null)
 					break;
 				LogManager
@@ -500,7 +533,9 @@ public class TrackersUDPServer extends Thread {
 					);
 				if (connection == null)
 					break;
-				tracker = connection.sensors.get(error.getSensorId());
+				tracker = (IMUTracker) connection
+					.getDevice()
+					.getTracker(error.getSensorId());
 				if (tracker == null)
 					break;
 				tracker.setStatus(TrackerStatus.ERROR);
@@ -518,7 +553,7 @@ public class TrackersUDPServer extends Thread {
 				LogManager
 					.info(
 						"[TrackerServer] Sensor info for "
-							+ connection.descriptiveName
+							+ connection.getDevice().getCustomName()
 							+ "/"
 							+ info.getSensorId()
 							+ ": "
@@ -529,20 +564,16 @@ public class TrackersUDPServer extends Thread {
 				if (connection == null)
 					break;
 				UDPPacket19SignalStrength signalStrength = (UDPPacket19SignalStrength) packet;
-				if (connection.sensors.size() > 0) {
-					Collection<IMUTracker> trackers = connection.sensors.values();
-					Iterator<IMUTracker> iterator = trackers.iterator();
-					while (iterator.hasNext()) {
-						IMUTracker tr = iterator.next();
-						tr.signalStrength = signalStrength.signalStrength;
-					}
-				}
+				connection.getDevice().getTrackers().forEach((t) -> {
+					IMUTracker tr = (IMUTracker) t;
+					tr.signalStrength = signalStrength.signalStrength;
+				});
 				break;
 			case UDPProtocolParser.PACKET_TEMPERATURE:
 				if (connection == null)
 					break;
 				UDPPacket20Temperature temp = (UDPPacket20Temperature) packet;
-				tracker = connection.sensors.get(temp.getSensorId());
+				tracker = (IMUTracker) connection.getDevice().getTracker(temp.getSensorId());
 				if (tracker == null)
 					break;
 				tracker.temperature = temp.temperature;
@@ -553,7 +584,7 @@ public class TrackersUDPServer extends Thread {
 		}
 	}
 
-	public List<UDPDevice> getConnections() {
+	public List<TrackerUDPConnection> getConnections() {
 		return connections;
 	}
 }
